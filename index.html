@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Study Wizard - RPG Idle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Georgia', 'Palatino', serif;
+      background: linear-gradient(135deg, #2a1810 0%, #1a0f0a 50%, #0a0505 100%);
+      color: #f4e8d8;
+      overflow-x: hidden;
+    }
+
+    /* Lofi grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    #app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header - Medieval tavern sign style */
+    .header {
+      background: linear-gradient(180deg, #3d2817 0%, #2a1810 100%);
+      padding: 16px 24px;
+      border-bottom: 3px solid #6b4423;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .title-area h1 {
+      font-size: 2rem;
+      color: #f4d794;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      letter-spacing: 2px;
+      font-weight: normal;
+    }
+
+    .title-area p {
+      font-size: 0.85rem;
+      color: #c4a574;
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 24px;
+    }
+
+    .stat-box {
+      text-align: right;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: #c4a574;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      color: #f4d794;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(244, 215, 148, 0.3);
+    }
+
+    /* Main Layout */
+    .main-container {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+    }
+
+    /* Left side - Character display */
+    .character-section {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .scene-card {
+      background: linear-gradient(135deg, #4a3425 0%, #3d2817 100%);
+      border-radius: 16px;
+      padding: 20px;
+      border: 2px solid #6b4423;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    /* Canvas for animated scene */
+    #mainCanvas {
+      width: 100%;
+      height: 400px;
+      background: linear-gradient(180deg, #1a0f0a 0%, #2a1810 100%);
+      border-radius: 12px;
+      border: 3px solid #5a3a1a;
+      cursor: pointer;
+      display: block;
+      transition: transform 0.1s;
+    }
+
+    #mainCanvas:active {
+      transform: scale(0.99);
+    }
+
+    .scene-caption {
+      margin-top: 12px;
+      font-size: 0.9rem;
+      color: #c4a574;
+      font-style: italic;
+      text-align: center;
+    }
+
+    /* Characters display */
+    .characters-card {
+      background: linear-gradient(135deg, #3d2817 0%, #2a1810 100%);
+      border-radius: 16px;
+      padding: 20px;
+      border: 2px solid #6b4423;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    .characters-card h2 {
+      color: #f4d794;
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+      text-align: center;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+    }
+
+    .character-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .character-item {
+      background: linear-gradient(135deg, #5a3a1a 0%, #4a3425 100%);
+      border-radius: 12px;
+      padding: 12px;
+      border: 2px solid #7a5a3a;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .character-avatar {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 8px;
+      position: relative;
+    }
+
+    .character-name {
+      font-size: 0.9rem;
+      color: #f4d794;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    .character-count {
+      font-size: 1.2rem;
+      color: #c4a574;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 8px;
+    }
+
+    .character-production {
+      font-size: 0.75rem;
+      color: #a48964;
+      margin-bottom: 8px;
+    }
+
+    .hire-btn {
+      width: 100%;
+      padding: 8px;
+      background: linear-gradient(135deg, #6b8e23 0%, #556b2f 100%);
+      border: none;
+      border-radius: 8px;
+      color: #f4e8d8;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Georgia', serif;
+      border: 1px solid #8fbc3f;
+    }
+
+    .hire-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(107, 142, 35, 0.5);
+    }
+
+    .hire-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Study Boon */
+    .study-boon-card {
+      background: linear-gradient(135deg, #4a2a5a 0%, #3a1a4a 100%);
+      border-radius: 16px;
+      padding: 20px;
+      border: 2px solid #6a4a7a;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+
+    .study-boon-card h2 {
+      color: #e4c4f4;
+      font-size: 1.3rem;
+      margin-bottom: 12px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+    }
+
+    .study-boon-card p {
+      color: #c4a4d4;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    .study-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #8b4789 0%, #6a3a6a 100%);
+      border: none;
+      border-radius: 12px;
+      color: #f4e8d8;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Georgia', serif;
+      border: 2px solid #ab67a9;
+      font-weight: bold;
+    }
+
+    .study-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 71, 137, 0.6);
+    }
+
+    .study-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .timer-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .timer-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ab67a9 0%, #8b4789 100%);
+      transition: width 1s linear;
+    }
+
+    /* Right sidebar - Tabs */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      background: linear-gradient(135deg, #3d2817 0%, #2a1810 100%);
+      padding: 8px;
+      border-radius: 12px;
+      border: 2px solid #6b4423;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: rgba(90, 58, 26, 0.5);
+      border: 1px solid #7a5a3a;
+      border-radius: 8px;
+      color: #c4a574;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Georgia', serif;
+      font-size: 0.85rem;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #6b4423 0%, #5a3a1a 100%);
+      color: #f4d794;
+      border-color: #8b6433;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .panel-card {
+      background: linear-gradient(135deg, #3d2817 0%, #2a1810 100%);
+      border-radius: 16px;
+      padding: 20px;
+      border: 2px solid #6b4423;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      max-height: 700px;
+      overflow-y: auto;
+    }
+
+    .panel-card::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .panel-card::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+    }
+
+    .panel-card::-webkit-scrollbar-thumb {
+      background: #6b4423;
+      border-radius: 4px;
+    }
+
+    .panel-card h2 {
+      color: #f4d794;
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+    }
+
+    .panel-desc {
+      color: #c4a574;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Upgrades */
+    .upgrade-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .upgrade-item {
+      background: linear-gradient(135deg, #4a3425 0%, #3d2817 100%);
+      border-radius: 12px;
+      padding: 14px;
+      border: 2px solid #6b4423;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .upgrade-info {
+      flex: 1;
+    }
+
+    .upgrade-title {
+      color: #f4d794;
+      font-size: 1rem;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    .upgrade-desc {
+      color: #a48964;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+    }
+
+    .upgrade-stats {
+      color: #8fbc3f;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    .upgrade-btn {
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #6b8e23 0%, #556b2f 100%);
+      border: none;
+      border-radius: 8px;
+      color: #f4e8d8;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Georgia', serif;
+      border: 1px solid #8fbc3f;
+      white-space: nowrap;
+    }
+
+    .upgrade-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(107, 142, 35, 0.5);
+    }
+
+    .upgrade-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Prestige */
+    .prestige-info {
+      background: linear-gradient(135deg, #5a3a1a 0%, #4a3425 100%);
+      border-radius: 12px;
+      padding: 20px;
+      border: 2px dashed #8b6433;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .prestige-label {
+      color: #c4a574;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+
+    .prestige-value {
+      font-size: 3rem;
+      color: #f4d794;
+      font-weight: bold;
+      text-shadow: 0 0 20px rgba(244, 215, 148, 0.4);
+    }
+
+    .prestige-bonus {
+      color: #8fbc3f;
+      font-size: 0.85rem;
+      margin-top: 8px;
+    }
+
+    .prestige-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #8b4513 0%, #654321 100%);
+      border: none;
+      border-radius: 12px;
+      color: #f4d794;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Georgia', serif;
+      border: 2px solid #a0522d;
+      font-weight: bold;
+    }
+
+    .prestige-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 69, 19, 0.6);
+    }
+
+    .prestige-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .prestige-note {
+      color: #a48964;
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 12px;
+      font-style: italic;
+    }
+
+    /* About */
+    .about-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .about-list li {
+      color: #c4a574;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      padding-left: 24px;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .about-list li::before {
+      content: '✦';
+      position: absolute;
+      left: 0;
+      color: #f4d794;
+    }
+
+    /* Footer */
+    .footer {
+      background: linear-gradient(180deg, #2a1810 0%, #1a0f0a 100%);
+      padding: 12px 24px;
+      text-align: center;
+      color: #c4a574;
+      font-size: 0.8rem;
+      border-top: 2px solid #6b4423;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+
+      .character-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .stats-row {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .title-area h1 {
+        font-size: 1.5rem;
+      }
+
+      #mainCanvas {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="header-content">
+        <div class="title-area">
+          <h1>⚔ Study Wizard ⚔</h1>
+          <p>A Lofi Medieval Fantasy RPG Idle</p>
+        </div>
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-label">Ink</div>
+            <div class="stat-value" id="inkDisplay">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Wisdom</div>
+            <div class="stat-value" id="wisdomDisplay">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Ink/sec</div>
+            <div class="stat-value" id="rateDisplay">0.2</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-container">
+      <div class="character-section">
+        <div class="scene-card">
+          <canvas id="mainCanvas"></canvas>
+          <p class="scene-caption">Click to channel magical energy and summon Ink from the void.</p>
+        </div>
+
+        <div class="characters-card">
+          <h2>⚔ Recruit Companions ⚔</h2>
+          <div class="character-grid" id="characterGrid"></div>
+        </div>
+
+        <div class="study-boon-card">
+          <h2>✨ Study Boon</h2>
+          <p>Focus for 25 minutes to receive a <strong>+50% Ink</strong> blessing.</p>
+          <button class="study-btn" id="studyBtn">Begin Study Session</button>
+          <div class="timer-bar">
+            <div class="timer-fill" id="timerFill" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="upgrades">Upgrades</button>
+          <button class="tab-btn" data-tab="clicking">Clicking</button>
+          <button class="tab-btn" data-tab="archive">Archive</button>
+          <button class="tab-btn" data-tab="about">About</button>
+        </div>
+
+        <div class="panel-card">
+          <div class="tab-panel active" id="upgrades">
+            <h2>Library Upgrades</h2>
+            <p class="panel-desc">Enhance your castle library to generate more Ink passively.</p>
+            <div class="upgrade-list" id="passiveUpgrades"></div>
+          </div>
+
+          <div class="tab-panel" id="clicking">
+            <h2>Click Power</h2>
+            <p class="panel-desc">Upgrade your magical implements to earn more Ink per click.</p>
+            <div class="upgrade-list" id="clickUpgrades"></div>
+          </div>
+
+          <div class="tab-panel" id="archive">
+            <h2>Restore the Archive</h2>
+            <p class="panel-desc">Transform accumulated Ink into eternal Wisdom Pages.</p>
+            <div class="prestige-info">
+              <div class="prestige-label">Wisdom Gained on Prestige:</div>
+              <div class="prestige-value" id="prestigeValue">0</div>
+              <div class="prestige-bonus" id="prestigeBonus">Wisdom grants permanent bonuses</div>
+            </div>
+            <button class="prestige-btn" id="prestigeBtn">Restore Archive</button>
+            <p class="prestige-note">Resets Ink and upgrades. Wisdom and companions remain.</p>
+          </div>
+
+          <div class="tab-panel" id="about">
+            <h2>About Study Wizard</h2>
+            <p class="panel-desc">A cozy lofi medieval fantasy idle RPG where studying becomes an adventure.</p>
+            <ul class="about-list">
+              <li>Click to channel magical energy and earn Ink</li>
+              <li>Recruit mystical companions to generate passive Ink</li>
+              <li>Upgrade your library and magical tools</li>
+              <li>Activate Study Boon when focusing for real studies</li>
+              <li>Prestige to gain eternal Wisdom bonuses</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      Study Wizard · A Lofi Medieval Fantasy RPG Idle · Progress auto-saves
+    </footer>
+  </div>
+
+  <script>
+    // Game State
+    const STATE_KEY = "StudyWizardRPG_v1";
+    
+    const state = {
+      ink: 0,
+      wisdom: 0,
+      clickPower: 1,
+      studyBoonActive: false,
+      studyBoonTime: 0,
+      passiveUpgrades: {},
+      clickUpgrades: {},
+      characters: {}
+    };
+
+    // Character configs - they level up visually!
+    const characterConfigs = [
+      {
+        id: 'apprentice',
+        name: 'Apprentice Scholar',
+        baseCost: 50,
+        baseRate: 0.5,
+        desc: 'A young mage learning the ways'
+      },
+      {
+        id: 'scholar',
+        name: 'Castle Scholar',
+        baseCost: 300,
+        baseRate: 2.5,
+        desc: 'Dedicated to ancient texts'
+      },
+      {
+        id: 'mage',
+        name: 'Tower Mage',
+        baseCost: 1500,
+        baseRate: 12,
+        desc: 'Channels arcane energies'
+      },
+      {
+        id: 'archmage',
+        name: 'Archmage',
+        baseCost: 8000,
+        baseRate: 60,
+        desc: 'Master of mystical arts'
+      },
+      {
+        id: 'timeLord',
+        name: 'Time Lord',
+        baseCost: 40000,
+        baseRate: 300,
+        desc: 'Bends time itself to study'
+      }
+    ];
+
+    const passiveUpgradeConfigs = [
+      { id: 'candlelight', name: 'Candlelight', baseCost: 15, rate: 0.2, desc: 'Cozy illumination' },
+      { id: 'scrolls', name: 'Ancient Scrolls', baseCost: 60, rate: 0.5, desc: 'Whispers of knowledge' },
+      { id: 'desk', name: 'Reading Desk', baseCost: 180, rate: 1.2, desc: 'Study sanctuary' },
+      { id: 'gallery', name: 'Upper Gallery', baseCost: 480, rate: 2.8, desc: 'More library space' },
+      { id: 'window', name: 'Astral Window', baseCost: 1300, rate: 6.5, desc: 'Starlight flows in' },
+      { id: 'quill', name: 'Enchanted Quill', baseCost: 3500, rate: 15, desc: 'Writes on its own' },
+      { id: 'spell', name: 'Time Spell', baseCost: 9000, rate: 35, desc: 'Dilates time' },
+      { id: 'tome', name: 'Ancient Tome', baseCost: 25000, rate: 80, desc: 'Self-writing grimoire' }
+    ];
+
+    const clickUpgradeConfigs = [
+      { id: 'quill', name: 'Basic Quill', baseCost: 10, power: 1, desc: 'Better writing tool' },
+      { id: 'silver', name: 'Silver Ink', baseCost: 100, power: 3, desc: 'Magical fluid' },
+      { id: 'pen', name: 'Magic Pen', baseCost: 800, power: 8, desc: 'Enchanted implement' },
+      { id: 'staff', name: 'Wizard Staff', baseCost: 5000, power: 20, desc: 'Pure magical power' }
+    ];
+
+    // Canvas setup
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let lastTick = performance.now();
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Particle class
+    class Particle {
+      constructor(x, y, text) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.vy = -2;
+        this.opacity = 1;
+        this.life = 60;
+      }
+
+      update() {
+        this.y += this.vy;
+        this.opacity -= 0.016;
+        this.life--;
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.fillStyle = '#f4d794';
+        ctx.font = 'bold 24px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+      }
+    }
+
+    // Draw character on canvas with level progression
+    function drawCharacter(count) {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      // Character evolves as you hire more
+      let color = '#6b4423';
+      let size = 60;
+      let glow = 0;
+
+      if (count > 50) {
+        color = '#f4d794';
+        size = 100;
+        glow = 30;
+      } else if (count > 20) {
+        color = '#c4a574';
+        size = 85;
+        glow = 20;
+      } else if (count > 5) {
+        color = '#8b6433';
+        size = 70;
+        glow = 10;
+      }
+
+      // Glow effect
+      if (glow > 0) {
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = glow;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, size + 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Main character
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, size, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hat
+      ctx.fillStyle = '#3a1a4a';
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY - size);
+      ctx.lineTo(centerX - size * 0.6, centerY - size * 0.3);
+      ctx.lineTo(centerX + size * 0.6, centerY - size * 0.3);
+      ctx.closePath();
+      ctx.fill();
+
+      // Eyes
+      ctx.fillStyle = '#f4e8d8';
+      ctx.beginPath();
+      ctx.arc(centerX - size * 0.3, centerY - size * 0.1, size * 0.15, 0, Math.PI * 2);
+      ctx.arc(centerX + size * 0.3, centerY - size * 0.1, size * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pupils
+      ctx.fillStyle = '#1a0f0a';
+      ctx.beginPath();
+      ctx.arc(centerX - size * 0.3, centerY - size * 0.1, size * 0.08, 0, Math.PI * 2);
+      ctx.arc(centerX + size * 0.3, centerY - size * 0.1, size * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Animation loop
+    function animate() {
+      ctx.fillStyle = '#1a0f0a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Floating sparkles
+      const time = Date.now() * 0.001;
+      for (let i = 0; i < 8; i++) {
+        const x = (Math.sin(time * 0.5 + i * 1.2) * 0.4 + 0.5) * canvas.width;
+        const y = (Math.cos(time * 0.7 + i * 1.5) * 0.4 + 0.5) * canvas.height;
+        const size = Math.sin(time * 2 + i) * 2 + 3;
+        
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#f4d794';
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw main character
+      const totalCharacters = Object.values(state.characters).reduce((a, b) => a + b, 0);
+      drawCharacter(totalCharacters);
+
+      // Particles
+      particles = particles.filter(p => {
+        const alive = p.update();
+        if (alive) p.draw(ctx);
+        return alive;
+      });
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Click handler
+    canvas.addEventListener('click', (e) => {
+      const power = calculateClickPower();
+      state.ink += power;
+      
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      particles.push(new Particle(x, y, `+${power.toFixed(1)}`));
+      
+      updateDisplay();
+      saveState();
+    });
+
+    // Calculate rates
+    function calculateClickPower() {
+      let power = 1;
+      clickUpgradeConfigs.forEach(cfg => {
+        const level = state.clickUpgrades[cfg.id] || 0;
+        power += cfg.power * level;
+      });
+      power *= (1 + state.wisdom * 0.02);
+      return power;
+    }
+
+    function calculateInkRate() {
+      let rate = 0.2;
+      
+      // Passive upgrades
+      passiveUpgradeConfigs.forEach(cfg => {
+        const level = state.passiveUpgrades[cfg.id] || 0;
+        rate += cfg.rate * level;
+      });
+
+      // Characters
+      characterConfigs.forEach(cfg => {
+        const count = state.characters[cfg.id] || 0;
+        rate += cfg.baseRate * count;
+      });
+
+      // Bonuses
+      if (state.studyBoonActive) rate *= 1.5;
+      rate *= (1 + state.wisdom * 0.05);
+
+      return rate;
+    }
+
+    function getCost(baseCost, level) {
+      return Math.floor(baseCost * Math.pow(1.15, level));
+    }
+
+    // Rendering
+    function updateDisplay() {
+      document.getElementById('inkDisplay').textContent = Math.floor(state.ink).toLocaleString();
+      document.getElementById('wisdomDisplay').textContent = state.wisdom.toLocaleString();
+      document.getElementById('rateDisplay').textContent = calculateInkRate().toFixed(1);
+
+      const estimatedWisdom = Math.floor(Math.sqrt(state.ink / 500));
+      document.getElementById('prestigeValue').textContent = estimatedWisdom;
+      document.getElementById('prestigeBonus').textContent = 
+        `+${(state.wisdom * 5).toFixed(0)}% Ink/sec · +${(state.wisdom * 2).toFixed(0)}% click power`;
+    }
+
+    function renderCharacters() {
+      const grid = document.getElementById('characterGrid');
+      grid.innerHTML = '';
+
+      characterConfigs.forEach(cfg => {
+        const count = state.characters[cfg.id] || 0;
+        const cost = getCost(cfg.baseCost, count);
+        const canAfford = state.ink >= cost;
+
+        const item = document.createElement('div');
+        item.className = 'character-item';
+        item.innerHTML = `
+          <div class="character-avatar">
+            <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+              <circle cx="50" cy="50" r="40" fill="${count > 10 ? '#f4d794' : count > 3 ? '#c4a574' : '#8b6433'}"/>
+              <polygon points="50,20 30,40 70,40" fill="#3a1a4a"/>
+              <circle cx="40" cy="45" r="5" fill="#f4e8d8"/>
+              <circle cx="60" cy="45" r="5" fill="#f4e8d8"/>
+              <circle cx="40" cy="45" r="2" fill="#1a0f0a"/>
+              <circle cx="60" cy="45" r="2" fill="#1a0f0a"/>
+            </svg>
+          </div>
+          <div class="character-name">${cfg.name}</div>
+          <div class="character-count">× ${count}</div>
+          <div class="character-production">${(cfg.baseRate * count).toFixed(1)} Ink/sec</div>
+          <button class="hire-btn" ${!canAfford ? 'disabled' : ''}>
+            Hire: ${cost.toLocaleString()}
+          </button>
+        `;
+
+        item.querySelector('button').addEventListener('click', () => {
+          if (state.ink >= cost) {
+            state.ink -= cost;
+            state.characters[cfg.id] = count + 1;
+            updateDisplay();
+            renderCharacters();
+            saveState();
+          }
+        });
+
+        grid.appendChild(item);
+      });
+    }
+
+    function renderPassiveUpgrades() {
+      const container = document.getElementById('passiveUpgrades');
+      container.innerHTML = '';
+
+      passiveUpgradeConfigs.forEach(cfg => {
+        const level = state.passiveUpgrades[cfg.id] || 0;
+        const cost = getCost(cfg.baseCost, level);
+        const canAfford = state.ink >= cost;
+
+        const item = document.createElement('div');
+        item.className = 'upgrade-item';
+        item.innerHTML = `
+          <div class="upgrade-info">
+            <div class="upgrade-title">${cfg.name} ${level > 0 ? `Lv.${level}` : ''}</div>
+            <div class="upgrade-desc">${cfg.desc}</div>
+            <div class="upgrade-stats">+${cfg.rate.toFixed(1)} Ink/sec</div>
+          </div>
+          <button class="upgrade-btn" ${!canAfford ? 'disabled' : ''}>
+            ${cost.toLocaleString()}
+          </button>
+        `;
+
+        item.querySelector('button').addEventListener('click', () => {
+          if (state.ink >= cost) {
+            state.ink -= cost;
+            state.passiveUpgrades[cfg.id] = level + 1;
+            updateDisplay();
+            renderPassiveUpgrades();
+            saveState();
+          }
+        });
+
+        container.appendChild(item);
+      });
+    }
+
+    function renderClickUpgrades() {
+      const container = document.getElementById('clickUpgrades');
+      container.innerHTML = '';
+
+      clickUpgradeConfigs.forEach(cfg => {
+        const level = state.clickUpgrades[cfg.id] || 0;
+        const cost = getCost(cfg.baseCost, level);
+        const canAfford = state.ink >= cost;
+
+        const item = document.createElement('div');
+        item.className = 'upgrade-item';
+        item.innerHTML = `
+          <div class="upgrade-info">
+            <div class="upgrade-title">${cfg.name} ${level > 0 ? `Lv.${level}` : ''}</div>
+            <div class="upgrade-desc">${cfg.desc}</div>
+            <div class="upgrade-stats">+${cfg.power} per click</div>
+          </div>
+          <button class="upgrade-btn" ${!canAfford ? 'disabled' : ''}>
+            ${cost.toLocaleString()}
+          </button>
+        `;
+
+        item.querySelector('button').addEventListener('click', () => {
+          if (state.ink >= cost) {
+            state.ink -= cost;
+            state.clickUpgrades[cfg.id] = level + 1;
+            updateDisplay();
+            renderClickUpgrades();
+            saveState();
+          }
+        });
+
+        container.appendChild(item);
+      });
+    }
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-panel').forEach(p => {
+          p.classList.remove('active');
+          if (p.id === tab) p.classList.add('active');
+        });
+      });
+    });
+
+    // Study Boon
+    document.getElementById('studyBtn').addEventListener('click', () => {
+      if (!state.studyBoonActive) {
+        state.studyBoonActive = true;
+        state.studyBoonTime = 25 * 60;
+        saveState();
+        updateStudyUI();
+      }
+    });
+
+    function updateStudyUI() {
+      const btn = document.getElementById('studyBtn');
+      const fill = document.getElementById('timerFill');
+
+      if (state.studyBoonActive) {
+        const m = Math.floor(state.studyBoonTime / 60);
+        const s = Math.floor(state.studyBoonTime % 60);
+        btn.textContent = `Active: ${m}:${s.toString().padStart(2, '0')}`;
+        btn.disabled = true;
+        const pct = (state.studyBoonTime / (25 * 60)) * 100;
+        fill.style.width = pct + '%';
+      } else {
+        btn.textContent = 'Begin Study Session';
+        btn.disabled = false;
+        fill.style.width = '0%';
+      }
+    }
+
+    // Prestige
+    document.getElementById('prestigeBtn').addEventListener('click', () => {
+      const gain = Math.floor(Math.sqrt(state.ink / 500));
+      if (gain === 0) return;
+
+      if (confirm(`Restore the Archive for ${gain} Wisdom Pages? This resets Ink and upgrades.`)) {
+        state.wisdom += gain;
+        state.ink = 0;
+        state.passiveUpgrades = {};
+        state.clickUpgrades = {};
+        state.studyBoonActive = false;
+        state.studyBoonTime = 0;
+        // Characters persist!
+        
+        saveState();
+        updateDisplay();
+        renderPassiveUpgrades();
+        renderClickUpgrades();
+        updateStudyUI();
+      }
+    });
+
+    // Game loop
+    function gameTick() {
+      const now = performance.now();
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
+
+      // Income
+      const rate = calculateInkRate();
+      state.ink += rate * dt;
+
+      // Study timer
+      if (state.studyBoonActive) {
+        state.studyBoonTime = Math.max(0, state.studyBoonTime - dt);
+        if (state.studyBoonTime === 0) {
+          state.studyBoonActive = false;
+        }
+        updateStudyUI();
+      }
+
+      updateDisplay();
+    }
+
+    setInterval(gameTick, 100);
+    setInterval(saveState, 5000);
+
+    // Save/Load
+    function saveState() {
+      localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      try {
+        const data = localStorage.getItem(STATE_KEY);
+        if (data) {
+          const loaded = JSON.parse(data);
+          Object.assign(state, loaded);
+        }
+      } catch (e) {
+        console.warn('Failed to load state:', e);
+      }
+    }
+
+    // Initialize
+    loadState();
+    updateDisplay();
+    renderCharacters();
+    renderPassiveUpgrades();
+    renderClickUpgrades();
+    updateStudyUI();
+  </script>
+</body>
+</html>
